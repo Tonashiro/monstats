@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     siteName: "Monstats",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og_image.png",
         width: 1200,
         height: 630,
         alt: "Monstats - Monad Blockchain Analytics Dashboard",
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     title: "Monstats - Monad Blockchain Analytics & Leaderboard",
     description:
       "Track your Monad blockchain activity with comprehensive analytics, dynamic scoring, and community leaderboards.",
-    images: ["/og-image.png"],
+    images: ["/og_image.png"],
     creator: "@tonashiro_",
     site: "@tonashiro_",
   },
