@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/atoms/Badge";
 import { Input } from "@/components/atoms/Input";
 import { Pagination } from "@/components/atoms/Pagination";
+import { Button } from "@/components/atoms/Button";
 import {
   Trophy,
   Medal,
@@ -24,6 +25,9 @@ import {
   TrendingUp,
   Users,
   Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import {
   LeaderboardEntry,
@@ -40,17 +44,28 @@ export interface LeaderboardProps {
   currentUserWallet?: string;
 }
 
-const getRankIcon = (rank: number) => {
-  if (rank === 1) return <Trophy className="h-4 w-4 text-yellow-500" />;
-  if (rank === 2) return <Medal className="h-4 w-4 text-gray-400" />;
-  if (rank === 3) return <Award className="h-4 w-4 text-amber-600" />;
+// Sort options configuration
+const SORT_OPTIONS = [
+  { value: "totalScore", label: "Score", defaultOrder: "desc" as const },
+  { value: "totalVolume", label: "Volume", defaultOrder: "desc" as const },
+  { value: "gasSpentMON", label: "Gas Spent", defaultOrder: "desc" as const },
+  { value: "txCount", label: "Transactions", defaultOrder: "desc" as const },
+  { value: "nftBagValue", label: "NFT Value", defaultOrder: "desc" as const },
+  { value: "daysActive", label: "Days Active", defaultOrder: "desc" as const },
+  { value: "longestStreak", label: "Streak", defaultOrder: "desc" as const },
+] as const;
+
+const getRankIcon = (userNumber: number) => {
+  if (userNumber === 1) return <Trophy className="h-4 w-4 text-yellow-500" />;
+  if (userNumber === 2) return <Medal className="h-4 w-4 text-gray-400" />;
+  if (userNumber === 3) return <Award className="h-4 w-4 text-amber-600" />;
   return null;
 };
 
-const getRankBadgeVariant = (rank: number) => {
-  if (rank === 1) return "default";
-  if (rank === 2) return "secondary";
-  if (rank === 3) return "outline";
+const getRankBadgeVariant = (userNumber: number) => {
+  if (userNumber === 1) return "default";
+  if (userNumber === 2) return "secondary";
+  if (userNumber === 3) return "outline";
   return "outline";
 };
 
@@ -62,19 +77,42 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(100);
+  const [sortBy, setSortBy] = React.useState("totalScore");
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
+  const [showLoadingOverlay, setShowLoadingOverlay] = React.useState(false);
 
-  // Use server-side pagination and search
+  // Use server-side pagination, search, and sorting
   const { data: leaderboardData, isLoading: leaderboardLoading } =
     useLeaderboard({
       page: currentPage,
       pageSize,
       search: searchQuery.trim() || undefined,
+      sortBy,
+      sortOrder,
     });
 
-  // Reset to first page when search changes
+  // Reset to first page when search or sort changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, sortBy, sortOrder]);
+
+  // Handle loading overlay with timeout
+  React.useEffect(() => {
+    if (leaderboardLoading) {
+      // Show loading overlay after a short delay
+      const timer = setTimeout(() => {
+        setShowLoadingOverlay(true);
+      }, 1000); // 1000ms delay before showing loading overlay
+
+      return () => {
+        clearTimeout(timer);
+        setShowLoadingOverlay(false);
+      };
+    } else {
+      // Hide loading overlay immediately when loading stops
+      setShowLoadingOverlay(false);
+    }
+  }, [leaderboardLoading]);
 
   const currentUser = data.find(
     (entry) =>
@@ -82,13 +120,34 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   );
 
   // Use server-side data if available, otherwise fall back to client-side data
+  // Keep showing previous data during loading to prevent disappearing
   const displayData = leaderboardData?.leaderboard || data;
   const pagination = leaderboardData?.pagination;
   const totalPages =
-    pagination?.totalPages || Math.ceil(data.length / pageSize);
-  const totalUsers = pagination?.totalUsers || data.length;
+    pagination?.totalPages || Math.ceil(displayData.length / pageSize);
+  const totalUsers = pagination?.totalUsers || displayData.length;
 
-  if (isLoading || leaderboardLoading) {
+  // Handle sort change
+  const handleSortChange = (newSortBy: string) => {
+    if (sortBy === newSortBy) {
+      // Toggle order if same field
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      // Set new field with default order
+      setSortBy(newSortBy);
+      const defaultOrder =
+        SORT_OPTIONS.find((option) => option.value === newSortBy)
+          ?.defaultOrder || "desc";
+      setSortOrder(defaultOrder);
+    }
+  };
+
+  // Get current sort option
+  const currentSortOption = SORT_OPTIONS.find(
+    (option) => option.value === sortBy
+  );
+
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -196,9 +255,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
-                  #{currentUser.rank}
+                  #{currentUser.userNumber}
                 </div>
-                <div className="text-sm text-muted-foreground">Rank</div>
+                <div className="text-sm text-muted-foreground">Position</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
@@ -221,102 +280,148 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
       {/* Leaderboard Table */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-purple-500" />
-              Leaderboard
-              <Badge variant="outline" className="ml-2">
-                <Users className="h-3 w-3 mr-1" />
-                {totalUsers} users
-              </Badge>
-            </CardTitle>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-purple-500" />
+                Leaderboard
+                <Badge variant="outline" className="ml-2">
+                  <Users className="h-3 w-3 mr-1" />
+                  {totalUsers} users
+                </Badge>
+                {currentSortOption && (
+                  <Badge variant="secondary" className="ml-2">
+                    Sorted by {currentSortOption.label}{" "}
+                    {sortOrder === "asc" ? "↑" : "↓"}
+                  </Badge>
+                )}
+              </CardTitle>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by wallet address..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+              {/* Search Input */}
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by wallet address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Sort Controls */}
+            <div className="flex flex-wrap gap-2">
+              {SORT_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={sortBy === option.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleSortChange(option.value)}
+                  className="flex items-center gap-1"
+                >
+                  {option.label}
+                  {sortBy === option.value ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp className="h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="h-3 w-3" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3" />
+                  )}
+                </Button>
+              ))}
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">Rank</TableHead>
-                <TableHead>Wallet</TableHead>
-                <TableHead className="text-right">Score</TableHead>
-                <TableHead className="text-right">Volume</TableHead>
-                <TableHead className="text-right">Gas Spent</TableHead>
-                <TableHead className="text-right">Transactions</TableHead>
-                <TableHead className="text-right">NFT Value</TableHead>
-                <TableHead className="text-right">Days Active</TableHead>
-                <TableHead className="text-right">Streak</TableHead>
-                <TableHead className="text-center">Day 1</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayData.map((entry) => {
-                const isCurrentUser =
-                  currentUserWallet &&
-                  entry.walletAddress.toLowerCase() ===
-                    currentUserWallet.toLowerCase();
+          <div className="relative">
+            {/* Loading overlay */}
+            {showLoadingOverlay && (
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <span>Updating...</span>
+                </div>
+              </div>
+            )}
 
-                return (
-                  <TableRow
-                    key={entry.walletAddress}
-                    className={cn(
-                      isCurrentUser && "bg-purple-500/10 border-purple-500/20"
-                    )}
-                  >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {getRankIcon(entry.rank)}
-                        <Badge variant={getRankBadgeVariant(entry.rank)}>
-                          #{entry.rank}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono">
-                      {formatWalletAddress(entry.walletAddress)}
-                    </TableCell>
-                    <TableCell className="text-right font-bold">
-                      {entry.totalScore.toFixed(1)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMON(entry.metrics.totalVolume)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMON(entry.metrics.gasSpentMON)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {entry.metrics.txCount.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatNumber(entry.metrics.nftBagValue)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {entry.metrics.daysActive}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {entry.metrics.longestStreak}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {entry.metrics.isDay1User ? (
-                        <Crown className="h-4 w-4 text-yellow-500 mx-auto" />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">#</TableHead>
+                  <TableHead>Wallet</TableHead>
+                  <TableHead className="text-right">Score</TableHead>
+                  <TableHead className="text-right">Volume</TableHead>
+                  <TableHead className="text-right">Gas Spent</TableHead>
+                  <TableHead className="text-right">Transactions</TableHead>
+                  <TableHead className="text-right">NFT Value</TableHead>
+                  <TableHead className="text-right">Days Active</TableHead>
+                  <TableHead className="text-right">Streak</TableHead>
+                  <TableHead className="text-center">Day 1</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayData.map((entry) => {
+                  const isCurrentUser =
+                    currentUserWallet &&
+                    entry.walletAddress.toLowerCase() ===
+                      currentUserWallet.toLowerCase();
+
+                  return (
+                    <TableRow
+                      key={entry.walletAddress}
+                      className={cn(
+                        isCurrentUser && "bg-purple-500/10 border-purple-500/20"
                       )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {getRankIcon(entry.userNumber)}
+                          <Badge
+                            variant={getRankBadgeVariant(entry.userNumber)}
+                          >
+                            #{entry.userNumber}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        {formatWalletAddress(entry.walletAddress)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {entry.totalScore.toFixed(1)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatMON(entry.metrics.totalVolume)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatMON(entry.metrics.gasSpentMON)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {entry.metrics.txCount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatNumber(entry.metrics.nftBagValue)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {entry.metrics.daysActive}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {entry.metrics.longestStreak}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {entry.metrics.isDay1User ? (
+                          <Crown className="h-4 w-4 text-yellow-500 mx-auto" />
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
 
           {/* Pagination */}
           {displayData.length > 0 && (

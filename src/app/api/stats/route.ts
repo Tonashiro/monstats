@@ -11,8 +11,36 @@ import { prisma } from "@/lib/prisma";
 import {
   calculateComponentScores,
   calculateDaysActive,
-  generateLeaderboard,
 } from "@/lib/scoring";
+
+/**
+ * OPTIMIZATION STRATEGIES FOR LARGE SCALE (10k+ users):
+ * 
+ * 1. INCREMENTAL RANKING (Current Implementation)
+ *    - Only updates affected users instead of all users
+ *    - O(log n) complexity instead of O(n)
+ *    - Much faster for new user additions
+ * 
+ * 2. BACKGROUND JOBS (Recommended for 50k+ users)
+ *    - Move heavy operations to background workers
+ *    - Use queues (Redis/Bull) for ranking updates
+ *    - Return immediate response, update rankings asynchronously
+ * 
+ * 3. CACHING (Recommended for 100k+ users)
+ *    - Cache leaderboard results
+ *    - Use Redis for fast leaderboard queries
+ *    - Invalidate cache only when rankings change
+ * 
+ * 4. PARTITIONING (For 1M+ users)
+ *    - Split leaderboard into tiers (Top 100, Top 1000, etc.)
+ *    - Only calculate exact ranks for top tiers
+ *    - Use approximate rankings for lower tiers
+ * 
+ * 5. BATCH UPDATES (For high-frequency updates)
+ *    - Collect multiple user updates
+ *    - Process them in batches every few minutes
+ *    - Reduces database load significantly
+ */
 
 /**
  * Calculate the longest consecutive days with transactions
@@ -664,86 +692,9 @@ function generateTransactionHistory(
   return completeData;
 }
 
-/**
- * Recalculate all user rankings
- */
-async function recalculateAllRankings() {
-  try {
-    // Get all users with their metrics
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        walletAddress: true,
-        txCount: true,
-        gasSpentMON: true,
-        totalVolume: true,
-        nftBagValue: true,
-        isDay1User: true,
-        longestStreak: true,
-        daysActive: true,
-      },
-    });
 
-    if (users.length === 0) return;
 
-    // Convert to the format expected by the scoring system
-    const usersWithMetrics = users.map((user) => ({
-      walletAddress: user.walletAddress,
-      metrics: {
-        txCount: user.txCount,
-        gasSpentMON: user.gasSpentMON,
-        totalVolume: user.totalVolume,
-        nftBagValue: user.nftBagValue,
-        isDay1User: user.isDay1User,
-        longestStreak: user.longestStreak,
-        daysActive: user.daysActive,
-        transactionHistory: [], // Empty array since we don't store it anymore
-      },
-    }));
 
-    // Calculate scores for all users
-    const usersWithScores = usersWithMetrics.map((user) => ({
-      walletAddress: user.walletAddress,
-      metrics: user.metrics,
-      scores: calculateComponentScores(
-        user.metrics,
-        usersWithMetrics.map((u) => u.metrics)
-      ),
-    }));
-
-    // Generate leaderboard with rankings
-    const leaderboard = generateLeaderboard(usersWithScores);
-
-    // Update all users with new scores and rankings
-    const updatePromises = leaderboard
-      .map((entry) => {
-        const user = users.find((u) => u.walletAddress === entry.walletAddress);
-        if (!user) return null;
-
-        return prisma.user.update({
-          where: { id: user.id },
-          data: {
-            volumeScore: entry.scores.volumeScore,
-            gasScore: entry.scores.gasScore,
-            transactionScore: entry.scores.transactionScore,
-            nftScore: entry.scores.nftScore,
-            daysActiveScore: entry.scores.daysActiveScore,
-            streakScore: entry.scores.streakScore,
-            day1BonusScore: entry.scores.day1BonusScore,
-            totalScore: entry.scores.totalScore,
-            rank: entry.rank,
-            updatedAt: new Date(),
-          },
-        });
-      })
-      .filter(Boolean);
-
-    await Promise.all(updatePromises);
-    console.log(`✅ Rankings recalculated for ${users.length} users`);
-  } catch (error) {
-    console.error("❌ Error recalculating rankings:", error);
-  }
-}
 
 /**
  * GET handler for /api/stats?wallet={address}
@@ -900,10 +851,9 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      // Recalculate all rankings after adding/updating user
-      await recalculateAllRankings();
-
       console.log(`User ${wallet} data saved/updated successfully`);
+      console.log(`Scores calculated:`, scores);
+      console.log(`isDay1User: ${isDay1User}`);
     } catch (dbError) {
       console.error("Database error:", dbError);
       // Continue with API response even if database save fails

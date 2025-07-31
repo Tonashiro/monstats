@@ -11,7 +11,6 @@ type UserWithMetrics = {
   longestStreak: number;
   daysActive: number;
   totalScore: number;
-  rank: number | null;
   volumeScore: number;
   gasScore: number;
   transactionScore: number;
@@ -21,12 +20,36 @@ type UserWithMetrics = {
   day1BonusScore: number;
 };
 
+// Define sort options
+type SortField = 'totalScore' | 'totalVolume' | 'gasSpentMON' | 'txCount' | 'nftBagValue' | 'daysActive' | 'longestStreak';
+type SortOrder = 'asc' | 'desc';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "100");
     const search = searchParams.get("search") || "";
+    const sortBy = (searchParams.get("sortBy") || "totalScore") as SortField;
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as SortOrder;
+
+    // Validate sort parameters
+    const validSortFields: SortField[] = ['totalScore', 'totalVolume', 'gasSpentMON', 'txCount', 'nftBagValue', 'daysActive', 'longestStreak'];
+    const validSortOrders: SortOrder[] = ['asc', 'desc'];
+    
+    if (!validSortFields.includes(sortBy)) {
+      return NextResponse.json(
+        { error: "Invalid sort field" },
+        { status: 400 }
+      );
+    }
+    
+    if (!validSortOrders.includes(sortOrder)) {
+      return NextResponse.json(
+        { error: "Invalid sort order" },
+        { status: 400 }
+      );
+    }
 
     // Calculate pagination
     const skip = (page - 1) * pageSize;
@@ -47,11 +70,11 @@ export async function GET(request: NextRequest) {
       where: whereClause,
     });
 
-    // Get paginated users with their metrics
+    // Get paginated users with their metrics, sorted dynamically
     const users = await prisma.user.findMany({
       where: whereClause,
       orderBy: {
-        rank: "asc", // Order by rank (1, 2, 3, etc.)
+        [sortBy]: sortOrder,
       },
       skip,
       take,
@@ -65,7 +88,6 @@ export async function GET(request: NextRequest) {
         longestStreak: true,
         daysActive: true,
         totalScore: true,
-        rank: true,
         volumeScore: true,
         gasScore: true,
         transactionScore: true,
@@ -76,11 +98,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Use the stored rank from database instead of recalculating
-    // This ensures consistent global ranking across all pages
-    const leaderboard = users.map((user: UserWithMetrics) => ({
+    // Calculate user numbers (position in the current page)
+    const leaderboard = users.map((user: UserWithMetrics, index: number) => ({
       walletAddress: user.walletAddress,
-      rank: user.rank || 0,
+      userNumber: skip + index + 1, // This is the position number for display
       totalScore: user.totalScore,
       metrics: {
         txCount: user.txCount,
@@ -118,6 +139,10 @@ export async function GET(request: NextRequest) {
         totalPages,
         hasNextPage,
         hasPreviousPage,
+      },
+      sorting: {
+        sortBy,
+        sortOrder,
       },
       lastUpdated: new Date().toISOString(),
     });

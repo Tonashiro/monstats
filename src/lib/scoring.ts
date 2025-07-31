@@ -23,7 +23,7 @@ export interface UserScore {
 }
 
 export interface LeaderboardEntry {
-  rank: number;
+  userNumber: number; // Position number for display (not a fixed rank)
   walletAddress: string;
   totalScore: number;
   metrics: UserMetrics;
@@ -172,10 +172,10 @@ export function generateLeaderboard(
   );
 
   return sortedUsers.map((user, index) => {
-    const rank = index + 1;
+    const userNumber = index + 1;
 
     return {
-      rank,
+      userNumber,
       walletAddress: user.walletAddress,
       totalScore: user.scores.totalScore,
       metrics: user.metrics,
