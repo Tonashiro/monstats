@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: monstats-postgres
+    environment:
+      POSTGRES_DB: monstats
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: monstats-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@monstats.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  pgadmin_data:

@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Core metrics
+  txCount       Int      @default(0)
+  gasSpentMON   Float    @default(0)
+  totalVolume   Float    @default(0)
+  nftBagValue   Float    @default(0)
+  isDay1User    Boolean  @default(false)
+  longestStreak Int      @default(0)
+  daysActive    Int      @default(0)
+
+  // Calculated scores
+  volumeScore       Float @default(0)
+  gasScore          Float @default(0)
+  transactionScore  Float @default(0)
+  nftScore          Float @default(0)
+  daysActiveScore   Float @default(0)
+  streakScore       Float @default(0)
+  day1BonusScore    Float @default(0)
+  totalScore        Float @default(0)
+  
+  // Ranking
+  rank              Int?   @unique
+  percentile        Float @default(0)
+
+  // Transaction history for charts
+  transactionHistory Json? // Store as JSON array
+
+  @@map("users")
+}
