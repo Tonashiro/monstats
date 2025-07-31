@@ -377,12 +377,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          {getRankIcon(entry.userNumber)}
                           <Badge
                             variant={getRankBadgeVariant(entry.userNumber)}
                           >
                             #{entry.userNumber}
                           </Badge>
+                          {getRankIcon(entry.userNumber)}
                         </div>
                       </TableCell>
                       <TableCell className="font-mono">
