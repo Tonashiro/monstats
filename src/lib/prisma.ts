@@ -13,9 +13,9 @@ export const prisma =
         : ["error"],
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/monstats',
       },
-    },
+    },  
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

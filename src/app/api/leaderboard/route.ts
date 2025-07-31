@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateLeaderboard, calculateComponentScores } from "@/lib/scoring";
 import { TransactionDataPoint } from "@/types";
+import { JsonValue } from "@prisma/client/runtime/library";
 
 type UserWithMetrics = {
   walletAddress: string;
@@ -12,7 +13,7 @@ type UserWithMetrics = {
   isDay1User: boolean;
   longestStreak: number;
   daysActive: number;
-  transactionHistory: TransactionDataPoint[] | null;
+  transactionHistory: JsonValue;
   totalScore: number;
   rank: number | null;
   percentile: number;
@@ -69,7 +70,7 @@ export async function GET() {
           isDay1User: user.isDay1User,
           longestStreak: user.longestStreak,
           daysActive: user.daysActive,
-          transactionHistory: user.transactionHistory || [],
+          transactionHistory: (user.transactionHistory as unknown as TransactionDataPoint[]) || [],
         },
       })
     );

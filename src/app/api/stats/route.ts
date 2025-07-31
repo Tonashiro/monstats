@@ -574,7 +574,8 @@ export async function GET(request: NextRequest) {
           isDay1User,
           longestStreak,
           daysActive,
-          transactionHistory,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          transactionHistory: transactionHistory as any,
           volumeScore: scores.volumeScore,
           gasScore: scores.gasScore,
           transactionScore: scores.transactionScore,
@@ -594,7 +595,8 @@ export async function GET(request: NextRequest) {
           isDay1User,
           longestStreak,
           daysActive,
-          transactionHistory,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          transactionHistory: transactionHistory as any,
           volumeScore: scores.volumeScore,
           gasScore: scores.gasScore,
           transactionScore: scores.transactionScore,
