@@ -1,18 +1,20 @@
 # Monstats Checker & Leaderboard
 
-A comprehensive web application for checking on-chain activity on the Monad blockchain with a sophisticated scoring system and leaderboard. Built with Next.js 15, TypeScript, and Tailwind CSS following atomic design principles.
+A comprehensive web application for checking on-chain activity on the Monad blockchain with a sophisticated scoring system and dynamic leaderboard. Built with Next.js 15, TypeScript, and Tailwind CSS following atomic design principles.
 
 ## 🚀 Features
 
 - **Wallet Analysis**: Enter any Ethereum wallet address to check eligibility
 - **Comprehensive Metrics**: View total transactions, gas spent, volume, NFT bag value, and more
 - **Advanced Scoring System**: Weighted scoring with percentile rankings
-- **Real-time Leaderboard**: See how you rank against other users
+- **Dynamic Leaderboard**: Sort by any metric with real-time updates
+- **Smart Loading**: Smooth loading states with timeout-based overlays
 - **Day 1 Status**: Special recognition for users who transacted on February 19, 2025
 - **Transaction Streaks**: Track your longest consecutive transaction streak
 - **Beautiful UI**: Modern, responsive design with gradient backgrounds and smooth animations
 - **Real-time Data**: Uses React Query for efficient data fetching and caching
 - **Database Integration**: PostgreSQL with Prisma ORM for persistent data
+- **Search & Pagination**: Find specific wallets and navigate through large datasets
 
 ## 🏗 Architecture
 
@@ -22,13 +24,19 @@ This project follows **Atomic Design** principles:
 - `Button` - Reusable button component with variants
 - `Input` - Form input component
 - `Card` - Card container with header, content, and footer variants
+- `Badge` - Status and label components
+- `Table` - Data table components
+- `Pagination` - Page navigation component
 
 ### Molecules
 - `WalletInputForm` - Form for entering wallet addresses
 - `MetricCard` - Display individual statistics with icons and styling
+- `TransactionChart` - Chart component for transaction history
+- `AdminPanel` - Administrative controls
 
 ### Organisms
 - `StatsDashboard` - Complete dashboard showing all wallet metrics and charts
+- `Leaderboard` - Dynamic leaderboard with sorting and search capabilities
 
 ### Templates
 - `MainLayout` - Page layout with header, main content, and footer
@@ -43,15 +51,18 @@ This project follows **Atomic Design** principles:
 - **Charts**: Recharts for data visualization
 - **Icons**: Lucide React
 - **Design System**: Atomic Design methodology
+- **Database**: PostgreSQL with Prisma ORM
+- **External APIs**: Etherscan API, Magic Eden API
 
 ## 📊 Metrics Tracked
 
 - **Total Transactions**: All-time transaction count
 - **Gas Spent**: Total MON tokens spent on gas fees
-- **Total Volume**: Trading volume in USD
-- **NFT Bag Value**: Estimated value of NFT holdings
-- **Day 1 Status**: Whether user transacted on launch day
+- **Total Volume**: Trading volume in MON
+- **NFT Bag Value**: Estimated value of NFT holdings from Magic Eden
+- **Day 1 Status**: Whether user transacted on launch day (February 19, 2025)
 - **Longest Streak**: Highest consecutive transaction streak
+- **Days Active**: Number of unique days with transactions
 
 ## 🏆 Scoring System
 
@@ -67,63 +78,26 @@ The leaderboard uses a sophisticated weighted scoring system:
 
 Each metric is normalized to a 0-100 percentile scale, then weighted and combined for the final score.
 
-## 🚀 Getting Started
+## 🎯 Dynamic Sorting
 
-### Prerequisites
+The leaderboard features intelligent sorting capabilities:
 
-- Node.js 18+ 
-- PostgreSQL database
-- Etherscan API key
-- npm or yarn
+- **Sort by Any Metric**: Score, Volume, Gas Spent, Transactions, NFT Value, Days Active, Streak
+- **Ascending/Descending**: Toggle sort order for each field
+- **Position Numbers**: Dynamic position numbers (#1, #2, etc.) instead of fixed ranks
+- **Real-time Updates**: Instant sorting without page refreshes
+- **Search Integration**: Search works seamlessly with any sort order
+- **Pagination**: Navigate through sorted results efficiently
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd monad-checker
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   Create a `.env.local` file:
-   ```env
-   # Database
-   DATABASE_URL="postgresql://username:password@localhost:5432/monad_checker"
-   
-   # API Keys
-   ETHERSCAN_API_KEY="your_etherscan_api_key_here"
-   
-   # Environment
-   NODE_ENV="development"
-   ```
-
-4. **Set up the database**
-   ```bash
-   # Generate Prisma client
-   npx prisma generate
-   
-   # Run database migrations
-   npx prisma migrate dev --name init
-   ```
-
-5. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open [http://localhost:3000](http://localhost:3000) in your browser**
 
 ## 📁 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── api/stats/[wallet]/route.ts  # API endpoint for wallet stats
+│   ├── api/
+│   │   ├── leaderboard/route.ts     # Leaderboard API with sorting
+│   │   └── stats/route.ts           # Wallet stats API
 │   ├── globals.css                  # Global styles and CSS variables
 │   ├── layout.tsx                   # Root layout with providers
 │   └── page.tsx                     # Main page component
@@ -133,9 +107,12 @@ src/
 │   ├── organisms/                   # Complex components
 │   └── templates/                   # Page layouts
 ├── hooks/
-│   └── useWalletStats.ts           # Custom hook for data fetching
+│   ├── useLeaderboard.ts           # Custom hook for leaderboard data
+│   └── useWalletStats.ts           # Custom hook for wallet stats
 ├── lib/
+│   ├── prisma.ts                   # Database client
 │   ├── providers.tsx               # React Query provider
+│   ├── scoring.ts                  # Scoring algorithms
 │   └── utils.ts                    # Utility functions
 └── types/
     └── index.ts                    # TypeScript type definitions
@@ -162,29 +139,42 @@ Returns wallet statistics for the provided address and saves data to database.
 
 ### GET `/api/leaderboard`
 
-Returns leaderboard data with rankings and scores.
+Returns leaderboard data with dynamic sorting and pagination.
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `pageSize`: Items per page (default: 100)
+- `search`: Search by wallet address
+- `sortBy`: Sort field (totalScore, totalVolume, gasSpentMON, etc.)
+- `sortOrder`: Sort direction (asc, desc)
 
 **Response:**
 ```json
 {
   "leaderboard": [
     {
-      "rank": 1,
+      "userNumber": 1,
       "walletAddress": "0x...",
       "totalScore": 85.2,
-      "percentile": 99.5,
       "metrics": {...},
       "scores": {...}
     }
   ],
-  "totalUsers": 1234,
+  "pagination": {
+    "currentPage": 1,
+    "pageSize": 100,
+    "totalUsers": 1234,
+    "totalPages": 13,
+    "hasNextPage": true,
+    "hasPreviousPage": false
+  },
+  "sorting": {
+    "sortBy": "totalScore",
+    "sortOrder": "desc"
+  },
   "lastUpdated": "2025-01-01T00:00:00Z"
 }
 ```
-
-### POST `/api/recalculate-rankings`
-
-Recalculates all user rankings and scores (admin endpoint).
 
 ## 🎨 Design System
 
@@ -195,50 +185,4 @@ The application uses a consistent design system with:
 - **Spacing**: Consistent spacing scale using Tailwind CSS
 - **Components**: Reusable atomic components
 - **Responsive**: Mobile-first responsive design
-
-## 🔮 Future Enhancements
-
-- [ ] Real Etherscan API integration
-- [ ] Magic Eden API integration for NFT data
-- [ ] Dark mode support
-- [ ] Export functionality for wallet reports
-- [ ] Historical data tracking
-- [ ] Social sharing features
-
-## 📝 Development
-
-### Code Style
-
-- Follow TypeScript best practices
-- Use TSDoc comments for all components and functions
-- Follow atomic design principles
-- Use semantic HTML elements
-- Implement proper error handling
-
-### Testing
-
-```bash
-# Run linting
-npm run lint
-
-# Run type checking
-npm run type-check
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🙏 Acknowledgments
-
-- Built for the Monad community
-- Inspired by modern web development practices
-- Uses open-source libraries and tools
+- **Loading States**: Smooth loading overlays with timeout-based display

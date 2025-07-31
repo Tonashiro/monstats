@@ -18,6 +18,7 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { AlertCircle, Loader2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletStats } from "@/types";
+import Image from "next/image";
 
 /**
  * Main page component for the Monstats
@@ -55,6 +56,13 @@ export default function HomePage() {
         {/* Hero Section */}
         <div className="text-center space-y-8 animate-fade-in pt-8">
           <div className="space-y-6">
+            <Image
+              src="/logo.webp"
+              alt="Monstats"
+              width={100}
+              height={100}
+              className="mx-auto"
+            />
             <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
               Monstats
             </h1>
