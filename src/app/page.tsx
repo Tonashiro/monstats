@@ -39,11 +39,8 @@ export default function HomePage() {
     refetch,
   } = useWalletStats(submittedWalletAddress, isSubmitted);
 
-  const {
-    data: leaderboardData,
-    isLoading: leaderboardLoading,
-    error: leaderboardError,
-  } = useLeaderboard();
+  const { data: leaderboardData, isLoading: leaderboardLoading } =
+    useLeaderboard();
 
   const handleSubmit = (walletAddress: string) => {
     setSubmittedWalletAddress(walletAddress);

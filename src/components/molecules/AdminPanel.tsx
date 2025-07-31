@@ -6,8 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/atoms/Card";
-import { Badge } from "@/components/atoms/Badge";
-import { RefreshCw, Users, TrendingUp, Clock } from "lucide-react";
+import { RefreshCw, TrendingUp, Clock } from "lucide-react";
 
 export interface AdminPanelProps {
   totalUsers?: number;

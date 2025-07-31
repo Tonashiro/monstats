@@ -7,7 +7,7 @@ import {
 } from "@/types";
 import { isDay1, getLaunchDate } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
-import { calculateComponentScores, calculateDaysActive, generateLeaderboard } from "@/lib/scoring";
+import { calculateComponentScores, calculateDaysActive } from "@/lib/scoring";
 
 /**
  * Calculate the longest consecutive days with transactions

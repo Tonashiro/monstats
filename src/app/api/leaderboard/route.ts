@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateLeaderboard, calculateComponentScores, calculateDaysActive } from "@/lib/scoring";
+import { generateLeaderboard, calculateComponentScores } from "@/lib/scoring";
 import { TransactionDataPoint } from "@/types";
 
 type UserWithMetrics = {
@@ -18,12 +18,28 @@ type UserWithMetrics = {
   percentile: number;
 };
 
-export async function GET(request: NextRequest) {
+type UserMetricsForScoring = {
+  txCount: number;
+  gasSpentMON: number;
+  totalVolume: number;
+  nftBagValue: number;
+  isDay1User: boolean;
+  longestStreak: number;
+  daysActive: number;
+  transactionHistory: TransactionDataPoint[];
+};
+
+type UserWithMetricsForScoring = {
+  walletAddress: string;
+  metrics: UserMetricsForScoring;
+};
+
+export async function GET() {
   try {
     // Get all users with their metrics
     const users = await prisma.user.findMany({
       orderBy: {
-        totalScore: 'desc'
+        totalScore: "desc",
       },
       select: {
         walletAddress: true,
@@ -38,30 +54,37 @@ export async function GET(request: NextRequest) {
         totalScore: true,
         rank: true,
         percentile: true,
-      }
+      },
     });
 
     // Convert to the format expected by the scoring system
-    const usersWithMetrics = users.map((user: UserWithMetrics) => ({
-      walletAddress: user.walletAddress,
-      metrics: {
-        txCount: user.txCount,
-        gasSpentMON: user.gasSpentMON,
-        totalVolume: user.totalVolume,
-        nftBagValue: user.nftBagValue,
-        isDay1User: user.isDay1User,
-        longestStreak: user.longestStreak,
-        daysActive: user.daysActive,
-        transactionHistory: user.transactionHistory || [],
-      }
-    }));
+    const usersWithMetrics: UserWithMetricsForScoring[] = users.map(
+      (user: UserWithMetrics) => ({
+        walletAddress: user.walletAddress,
+        metrics: {
+          txCount: user.txCount,
+          gasSpentMON: user.gasSpentMON,
+          totalVolume: user.totalVolume,
+          nftBagValue: user.nftBagValue,
+          isDay1User: user.isDay1User,
+          longestStreak: user.longestStreak,
+          daysActive: user.daysActive,
+          transactionHistory: user.transactionHistory || [],
+        },
+      })
+    );
 
     // Calculate scores for all users
-    const usersWithScores = usersWithMetrics.map((user: { walletAddress: string; metrics: any }) => ({
-      walletAddress: user.walletAddress,
-      metrics: user.metrics,
-      scores: calculateComponentScores(user.metrics, usersWithMetrics.map((u: { metrics: any }) => u.metrics))
-    }));
+    const usersWithScores = usersWithMetrics.map(
+      (user: UserWithMetricsForScoring) => ({
+        walletAddress: user.walletAddress,
+        metrics: user.metrics,
+        scores: calculateComponentScores(
+          user.metrics,
+          usersWithMetrics.map((u: UserWithMetricsForScoring) => u.metrics)
+        ),
+      })
+    );
 
     // Generate leaderboard
     const leaderboard = generateLeaderboard(usersWithScores);
@@ -69,9 +92,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       leaderboard,
       totalUsers: leaderboard.length,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Error fetching leaderboard:", error);
     return NextResponse.json(
@@ -79,4 +101,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

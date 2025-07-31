@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateComponentScores, generateLeaderboard } from "@/lib/scoring";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     console.log("Starting ranking recalculation...");
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Update all users with new scores and rankings
     const updatePromises = leaderboard
-      .map((entry, index) => {
+      .map((entry) => {
         const user = users.find(
           (u: any) => u.walletAddress === entry.walletAddress
         );

@@ -3,11 +3,10 @@ import { cn } from "@/lib/utils";
 
 interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
   value?: string;
-  onValueChange?: (value: string) => void;
 }
 
 const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(
-  ({ className, value, onValueChange, ...props }, ref) => (
+  ({ className, value, ...props }, ref) => (
     <div
       ref={ref}
       className={cn("flex items-center space-x-1", className)}

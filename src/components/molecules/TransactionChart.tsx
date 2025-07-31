@@ -82,14 +82,14 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
 
     const startWeek = new Date(weeks[0]);
     const endWeek = new Date(weeks[weeks.length - 1]);
-    
+
     const completeWeeks: (TransactionDataPoint & { label: string })[] = [];
     const currentWeek = new Date(startWeek);
-    
+
     while (currentWeek <= endWeek) {
       const weekKey = currentWeek.toISOString().split("T")[0];
       const existingData = weeklyData.get(weekKey);
-      
+
       completeWeeks.push({
         date: weekKey,
         transactions: existingData?.transactions || 0,
@@ -100,75 +100,12 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
           day: "numeric",
         })}`,
       });
-      
+
       // Move to next week
       currentWeek.setDate(currentWeek.getDate() + 7);
     }
-    
+
     return completeWeeks;
-  }, []);
-
-  // Group data by months
-  const groupByMonths = React.useCallback((data: TransactionDataPoint[]) => {
-    const monthlyData = new Map<
-      string,
-      { transactions: number; volume: number; gasSpent: number; count: number }
-    >();
-
-    data.forEach((item) => {
-      const date = new Date(item.date);
-      const monthKey = `${date.getFullYear()}-${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}`;
-
-      if (monthlyData.has(monthKey)) {
-        const existing = monthlyData.get(monthKey)!;
-        existing.transactions += item.transactions;
-        existing.volume += item.volume;
-        existing.gasSpent += item.gasSpent;
-        existing.count += 1;
-      } else {
-        monthlyData.set(monthKey, {
-          transactions: item.transactions,
-          volume: item.volume,
-          gasSpent: item.gasSpent,
-          count: 1,
-        });
-      }
-    });
-
-    // Get the date range and fill in missing months
-    const months = Array.from(monthlyData.keys()).sort();
-    if (months.length === 0) return [];
-
-    const startMonth = new Date(months[0] + "-01");
-    const endMonth = new Date(months[months.length - 1] + "-01");
-    
-    const completeMonths: (TransactionDataPoint & { label: string })[] = [];
-    const currentMonth = new Date(startMonth);
-    
-    while (currentMonth <= endMonth) {
-      const monthKey = `${currentMonth.getFullYear()}-${String(
-        currentMonth.getMonth() + 1
-      ).padStart(2, "0")}`;
-      const existingData = monthlyData.get(monthKey);
-      
-      completeMonths.push({
-        date: monthKey,
-        transactions: existingData?.transactions || 0,
-        volume: existingData?.volume || 0,
-        gasSpent: existingData?.gasSpent || 0,
-        label: currentMonth.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-        }),
-      });
-      
-      // Move to next month
-      currentMonth.setMonth(currentMonth.getMonth() + 1);
-    }
-    
-    return completeMonths;
   }, []);
 
   // Process data based on selected time period
@@ -190,7 +127,7 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
         break;
       case "ALL":
         // For ALL, use the actual data range but ensure we start from launch date
-        const launchDate = new Date('2025-02-19T00:00:00Z');
+        const launchDate = new Date("2025-02-19T00:00:00Z");
         cutoffDate = launchDate;
         endDate = now;
         break;
@@ -201,7 +138,8 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
 
     // Filter data based on time period
     const filteredData = data.filter(
-      (item) => new Date(item.date) >= cutoffDate && new Date(item.date) <= endDate
+      (item) =>
+        new Date(item.date) >= cutoffDate && new Date(item.date) <= endDate
     );
 
     if (timePeriod === "3M") {
@@ -209,30 +147,45 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
       return groupByWeeks(filteredData);
     } else if (timePeriod === "ALL") {
       // Group by months for all-time view - ensure we include all months from launch to now
-      const launchDate = new Date('2025-02-19T00:00:00Z');
-      const startMonth = new Date(launchDate.getFullYear(), launchDate.getMonth(), 1);
+      const launchDate = new Date("2025-02-19T00:00:00Z");
+      const startMonth = new Date(
+        launchDate.getFullYear(),
+        launchDate.getMonth(),
+        1
+      );
       const endMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      
+
       const completeMonths: (TransactionDataPoint & { label: string })[] = [];
       const currentMonth = new Date(startMonth);
-      
+
       while (currentMonth <= endMonth) {
         const monthKey = `${currentMonth.getFullYear()}-${String(
           currentMonth.getMonth() + 1
         ).padStart(2, "0")}`;
-        
+
         // Find data for this month
-        const monthData = filteredData.filter(item => {
+        const monthData = filteredData.filter((item) => {
           const itemDate = new Date(item.date);
-          return itemDate.getFullYear() === currentMonth.getFullYear() && 
-                 itemDate.getMonth() === currentMonth.getMonth();
+          return (
+            itemDate.getFullYear() === currentMonth.getFullYear() &&
+            itemDate.getMonth() === currentMonth.getMonth()
+          );
         });
-        
+
         // Sum up the data for this month
-        const monthTransactions = monthData.reduce((sum, item) => sum + item.transactions, 0);
-        const monthVolume = monthData.reduce((sum, item) => sum + item.volume, 0);
-        const monthGasSpent = monthData.reduce((sum, item) => sum + item.gasSpent, 0);
-        
+        const monthTransactions = monthData.reduce(
+          (sum, item) => sum + item.transactions,
+          0
+        );
+        const monthVolume = monthData.reduce(
+          (sum, item) => sum + item.volume,
+          0
+        );
+        const monthGasSpent = monthData.reduce(
+          (sum, item) => sum + item.gasSpent,
+          0
+        );
+
         completeMonths.push({
           date: monthKey,
           transactions: monthTransactions,
@@ -243,21 +196,23 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
             month: "short",
           }),
         });
-        
+
         // Move to next month
         currentMonth.setMonth(currentMonth.getMonth() + 1);
       }
-      
+
       return completeMonths;
     } else {
       // Daily data for 30D view - fill in missing days with zeros
       const completeData: (TransactionDataPoint & { label: string })[] = [];
       const currentDate = new Date(cutoffDate);
-      
+
       while (currentDate <= endDate) {
-        const dateString = currentDate.toISOString().split('T')[0];
-        const existingData = filteredData.find(item => item.date === dateString);
-        
+        const dateString = currentDate.toISOString().split("T")[0];
+        const existingData = filteredData.find(
+          (item) => item.date === dateString
+        );
+
         completeData.push({
           ...existingData,
           date: dateString,
@@ -269,14 +224,14 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
             day: "numeric",
           }),
         });
-        
+
         // Move to next day
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
       return completeData;
     }
-  }, [data, timePeriod, groupByWeeks, groupByMonths]);
+  }, [data, timePeriod, groupByWeeks]);
 
   const getChartTitle = () => {
     switch (timePeriod) {
@@ -417,4 +372,3 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
     </Card>
   );
 };
- 
