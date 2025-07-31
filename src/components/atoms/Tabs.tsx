@@ -36,10 +36,11 @@ interface TabsTriggerProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
   value?: string;
+  onValueChange?: (value: string) => void;
 }
 
 const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
-  ({ className, active, value, ...props }, ref) => (
+  ({ className, active, value, onValueChange, ...props }, ref) => (
     <button
       ref={ref}
       className={cn(
@@ -50,6 +51,7 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
         className
       )}
       data-value={value}
+      onClick={() => value && onValueChange?.(value)}
       {...props}
     />
   )

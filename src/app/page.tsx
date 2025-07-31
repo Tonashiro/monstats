@@ -144,16 +144,14 @@ export default function HomePage() {
           <div className="space-y-6 animate-fade-in">
             {/* Tabs Navigation */}
             <div className="flex justify-center">
-              <Tabs
-                value={activeTab}
-                onValueChange={(value) =>
-                  setActiveTab(value as "stats" | "leaderboard")
-                }
-              >
+              <Tabs value={activeTab}>
                 <TabsList className="grid w-full max-w-md grid-cols-2">
                   <TabsTrigger
                     value="stats"
                     active={activeTab === "stats"}
+                    onValueChange={(value) =>
+                      setActiveTab(value as "stats" | "leaderboard")
+                    }
                     className="flex items-center gap-2"
                   >
                     <BarChart3 className="h-4 w-4" />
@@ -162,6 +160,9 @@ export default function HomePage() {
                   <TabsTrigger
                     value="leaderboard"
                     active={activeTab === "leaderboard"}
+                    onValueChange={(value) =>
+                      setActiveTab(value as "stats" | "leaderboard")
+                    }
                     className="flex items-center gap-2"
                   >
                     <Trophy className="h-4 w-4" />
