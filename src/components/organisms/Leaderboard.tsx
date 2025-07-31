@@ -14,7 +14,17 @@ import {
   CardTitle,
 } from "@/components/atoms/Card";
 import { Badge } from "@/components/atoms/Badge";
-import { Trophy, Medal, Award, Crown, TrendingUp, Users } from "lucide-react";
+import { Input } from "@/components/atoms/Input";
+import { Pagination } from "@/components/atoms/Pagination";
+import {
+  Trophy,
+  Medal,
+  Award,
+  Crown,
+  TrendingUp,
+  Users,
+  Search,
+} from "lucide-react";
 import {
   LeaderboardEntry,
   formatWalletAddress,
@@ -22,6 +32,7 @@ import {
 } from "@/lib/scoring";
 import { formatMON, formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
 
 export interface LeaderboardProps {
   data: LeaderboardEntry[];
@@ -48,12 +59,36 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   isLoading = false,
   currentUserWallet,
 }) => {
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(100);
+
+  // Use server-side pagination and search
+  const { data: leaderboardData, isLoading: leaderboardLoading } =
+    useLeaderboard({
+      page: currentPage,
+      pageSize,
+      search: searchQuery.trim() || undefined,
+    });
+
+  // Reset to first page when search changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const currentUser = data.find(
     (entry) =>
       entry.walletAddress.toLowerCase() === currentUserWallet?.toLowerCase()
   );
 
-  if (isLoading) {
+  // Use server-side data if available, otherwise fall back to client-side data
+  const displayData = leaderboardData?.leaderboard || data;
+  const pagination = leaderboardData?.pagination;
+  const totalPages =
+    pagination?.totalPages || Math.ceil(data.length / pageSize);
+  const totalUsers = pagination?.totalUsers || data.length;
+
+  if (isLoading || leaderboardLoading) {
     return (
       <Card>
         <CardHeader>
@@ -77,6 +112,75 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     );
   }
 
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-purple-500" />
+            Leaderboard
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Users Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Be the first to check your wallet stats and appear on the
+              leaderboard!
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Enter your wallet address above to get started.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show no search results message
+  if (searchQuery && displayData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-purple-500" />
+              Leaderboard
+              <Badge variant="outline" className="ml-2">
+                <Users className="h-3 w-3 mr-1" />
+                {data.length} users
+              </Badge>
+            </CardTitle>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by wallet address..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Results Found</h3>
+            <p className="text-muted-foreground mb-4">
+              No wallets found matching &quot;{searchQuery}&quot;
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Try a different search term or clear the search to see all users.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Current User Summary */}
@@ -89,7 +193,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
                   #{currentUser.rank}
@@ -102,12 +206,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                 </div>
                 <div className="text-sm text-muted-foreground">Total Score</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-400">
-                  Top {currentUser.percentile.toFixed(1)}%
-                </div>
-                <div className="text-sm text-muted-foreground">Percentile</div>
-              </div>
+
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
                   {data.length}
@@ -122,16 +221,29 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
       {/* Leaderboard Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-purple-500" />
-            Leaderboard
-            <Badge variant="outline" className="ml-2">
-              <Users className="h-3 w-3 mr-1" />
-              {data.length} users
-            </Badge>
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-purple-500" />
+              Leaderboard
+              <Badge variant="outline" className="ml-2">
+                <Users className="h-3 w-3 mr-1" />
+                {totalUsers} users
+              </Badge>
+            </CardTitle>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by wallet address..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -145,11 +257,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                 <TableHead className="text-right">Days Active</TableHead>
                 <TableHead className="text-right">Streak</TableHead>
                 <TableHead className="text-center">Day 1</TableHead>
-                <TableHead className="text-right">Percentile</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((entry) => {
+              {displayData.map((entry) => {
                 const isCurrentUser =
                   currentUserWallet &&
                   entry.walletAddress.toLowerCase() ===
@@ -201,16 +312,24 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline">
-                        Top {entry.percentile.toFixed(1)}%
-                      </Badge>
-                    </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          {displayData.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={totalUsers}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[50, 100, 200, 500]}
+            />
+          )}
         </CardContent>
       </Card>
 

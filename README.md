@@ -1,4 +1,4 @@
-# Monad On-Chain Activity Checker & Leaderboard
+# Monstats Checker & Leaderboard
 
 A comprehensive web application for checking on-chain activity on the Monad blockchain with a sophisticated scoring system and leaderboard. Built with Next.js 15, TypeScript, and Tailwind CSS following atomic design principles.
 

@@ -26,29 +26,32 @@ export interface LeaderboardEntry {
   rank: number;
   walletAddress: string;
   totalScore: number;
-  percentile: number;
   metrics: UserMetrics;
   scores: UserScore;
 }
 
 // Weight distribution for scoring
 const WEIGHTS = {
-  volume: 0.25,        // 25% - High weight for economic activity
-  gas: 0.20,           // 20% - Commitment and activity level
-  transactions: 0.15,  // 15% - Consistent usage
-  nft: 0.15,           // 15% - Investment and taste
-  daysActive: 0.10,    // 10% - Consistency over time
-  streak: 0.10,        // 10% - Sustained engagement
-  day1Bonus: 0.05,     // 5% - Early adoption bonus
+  volume: 0.25, // 25% - High weight for economic activity
+  gas: 0.2, // 20% - Commitment and activity level
+  transactions: 0.15, // 15% - Consistent usage
+  nft: 0.15, // 15% - Investment and taste
+  daysActive: 0.1, // 10% - Consistency over time
+  streak: 0.1, // 10% - Sustained engagement
+  day1Bonus: 0.05, // 5% - Early adoption bonus
 } as const;
 
 /**
  * Calculate days active from transaction history
  */
-export function calculateDaysActive(transactionHistory: TransactionDataPoint[]): number {
+export function calculateDaysActive(
+  transactionHistory: TransactionDataPoint[]
+): number {
   if (!transactionHistory || transactionHistory.length === 0) return 0;
-  
-  const daysWithTransactions = transactionHistory.filter(day => day.transactions > 0);
+
+  const daysWithTransactions = transactionHistory.filter(
+    (day) => day.transactions > 0
+  );
   return daysWithTransactions.length;
 }
 
@@ -61,23 +64,26 @@ export function normalizeToPercentile(
   useLogTransform: boolean = false
 ): number {
   if (allValues.length === 0) return 0;
-  
+
+  // If there's only one user, give them a perfect score for that metric
+  if (allValues.length === 1) return 100;
+
   let normalizedValue = value;
   let normalizedAllValues = allValues;
-  
+
   // Apply log transformation for volume to prevent whale dominance
   if (useLogTransform) {
     normalizedValue = Math.log(1 + value);
-    normalizedAllValues = allValues.map(v => Math.log(1 + v));
+    normalizedAllValues = allValues.map((v) => Math.log(1 + v));
   }
-  
+
   // Sort values to find percentile
   const sortedValues = [...normalizedAllValues].sort((a, b) => a - b);
-  const rank = sortedValues.findIndex(v => v >= normalizedValue);
-  
+  const rank = sortedValues.findIndex((v) => v >= normalizedValue);
+
   // Calculate percentile (0-100)
   const percentile = rank === -1 ? 0 : (rank / sortedValues.length) * 100;
-  
+
   return Math.round(percentile * 100) / 100; // Round to 2 decimal places
 }
 
@@ -89,34 +95,55 @@ export function calculateComponentScores(
   allUsersMetrics: UserMetrics[]
 ): UserScore {
   // Extract all values for normalization
-  const allVolumes = allUsersMetrics.map(u => u.totalVolume);
-  const allGasSpent = allUsersMetrics.map(u => u.gasSpentMON);
-  const allTxCounts = allUsersMetrics.map(u => u.txCount);
-  const allNftValues = allUsersMetrics.map(u => u.nftBagValue);
-  const allDaysActive = allUsersMetrics.map(u => u.daysActive);
-  const allStreaks = allUsersMetrics.map(u => u.longestStreak);
-  
+  const allVolumes = allUsersMetrics.map((u) => u.totalVolume);
+  const allGasSpent = allUsersMetrics.map((u) => u.gasSpentMON);
+  const allTxCounts = allUsersMetrics.map((u) => u.txCount);
+  const allNftValues = allUsersMetrics.map((u) => u.nftBagValue);
+  const allDaysActive = allUsersMetrics.map((u) => u.daysActive);
+  const allStreaks = allUsersMetrics.map((u) => u.longestStreak);
+
   // Calculate normalized scores
-  const volumeScore = normalizeToPercentile(userMetrics.totalVolume, allVolumes, true);
-  const gasScore = normalizeToPercentile(userMetrics.gasSpentMON, allGasSpent, true);
-  const transactionScore = normalizeToPercentile(userMetrics.txCount, allTxCounts);
-  const nftScore = normalizeToPercentile(userMetrics.nftBagValue, allNftValues, true);
-  const daysActiveScore = normalizeToPercentile(userMetrics.daysActive, allDaysActive);
-  const streakScore = normalizeToPercentile(userMetrics.longestStreak, allStreaks);
-  
+  const volumeScore = normalizeToPercentile(
+    userMetrics.totalVolume,
+    allVolumes,
+    true
+  );
+  const gasScore = normalizeToPercentile(
+    userMetrics.gasSpentMON,
+    allGasSpent,
+    true
+  );
+  const transactionScore = normalizeToPercentile(
+    userMetrics.txCount,
+    allTxCounts
+  );
+  const nftScore = normalizeToPercentile(
+    userMetrics.nftBagValue,
+    allNftValues,
+    true
+  );
+  const daysActiveScore = normalizeToPercentile(
+    userMetrics.daysActive,
+    allDaysActive
+  );
+  const streakScore = normalizeToPercentile(
+    userMetrics.longestStreak,
+    allStreaks
+  );
+
   // Day 1 bonus is binary (100 if day 1, 0 if not)
   const day1BonusScore = userMetrics.isDay1User ? 100 : 0;
-  
+
   // Calculate weighted total score
-  const totalScore = 
-    (volumeScore * WEIGHTS.volume) +
-    (gasScore * WEIGHTS.gas) +
-    (transactionScore * WEIGHTS.transactions) +
-    (nftScore * WEIGHTS.nft) +
-    (daysActiveScore * WEIGHTS.daysActive) +
-    (streakScore * WEIGHTS.streak) +
-    (day1BonusScore * WEIGHTS.day1Bonus);
-  
+  const totalScore =
+    volumeScore * WEIGHTS.volume +
+    gasScore * WEIGHTS.gas +
+    transactionScore * WEIGHTS.transactions +
+    nftScore * WEIGHTS.nft +
+    daysActiveScore * WEIGHTS.daysActive +
+    streakScore * WEIGHTS.streak +
+    day1BonusScore * WEIGHTS.day1Bonus;
+
   return {
     volumeScore,
     gasScore,
@@ -130,31 +157,27 @@ export function calculateComponentScores(
 }
 
 /**
- * Calculate percentile ranking
- */
-export function calculatePercentile(rank: number, totalUsers: number): number {
-  if (totalUsers === 0) return 0;
-  return Math.round(((totalUsers - rank + 1) / totalUsers) * 100 * 100) / 100;
-}
-
-/**
  * Generate leaderboard with rankings
  */
 export function generateLeaderboard(
-  usersWithScores: Array<{ walletAddress: string; metrics: UserMetrics; scores: UserScore }>
+  usersWithScores: Array<{
+    walletAddress: string;
+    metrics: UserMetrics;
+    scores: UserScore;
+  }>
 ): LeaderboardEntry[] {
   // Sort by total score (descending)
-  const sortedUsers = [...usersWithScores].sort((a, b) => b.scores.totalScore - a.scores.totalScore);
-  
+  const sortedUsers = [...usersWithScores].sort(
+    (a, b) => b.scores.totalScore - a.scores.totalScore
+  );
+
   return sortedUsers.map((user, index) => {
     const rank = index + 1;
-    const percentile = calculatePercentile(rank, sortedUsers.length);
-    
+
     return {
       rank,
       walletAddress: user.walletAddress,
       totalScore: user.scores.totalScore,
-      percentile,
       metrics: user.metrics,
       scores: user.scores,
     };
@@ -176,10 +199,22 @@ export function getScoreBreakdown(scores: UserScore) {
   return [
     { label: "Volume", score: scores.volumeScore, weight: WEIGHTS.volume },
     { label: "Gas Spent", score: scores.gasScore, weight: WEIGHTS.gas },
-    { label: "Transactions", score: scores.transactionScore, weight: WEIGHTS.transactions },
+    {
+      label: "Transactions",
+      score: scores.transactionScore,
+      weight: WEIGHTS.transactions,
+    },
     { label: "NFT Value", score: scores.nftScore, weight: WEIGHTS.nft },
-    { label: "Days Active", score: scores.daysActiveScore, weight: WEIGHTS.daysActive },
+    {
+      label: "Days Active",
+      score: scores.daysActiveScore,
+      weight: WEIGHTS.daysActive,
+    },
     { label: "Streak", score: scores.streakScore, weight: WEIGHTS.streak },
-    { label: "Day 1 Bonus", score: scores.day1BonusScore, weight: WEIGHTS.day1Bonus },
+    {
+      label: "Day 1 Bonus",
+      score: scores.day1BonusScore,
+      weight: WEIGHTS.day1Bonus,
+    },
   ];
-} 
+}

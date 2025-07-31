@@ -3,11 +3,16 @@ import {
   WalletStats,
   EtherscanResponse,
   MagicEdenUserCollections,
+  MagicEdenCollection,
   TransactionDataPoint,
 } from "@/types";
 import { isDay1, getLaunchDate } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
-import { calculateComponentScores, calculateDaysActive } from "@/lib/scoring";
+import {
+  calculateComponentScores,
+  calculateDaysActive,
+  generateLeaderboard,
+} from "@/lib/scoring";
 
 /**
  * Calculate the longest consecutive days with transactions
@@ -122,6 +127,192 @@ function calculateTotalVolume(transactions: Record<string, string>[]): number {
  * @param walletAddress - Wallet address to check
  * @returns NFT bag value in MON
  */
+// NFT validation constants to prevent wash trading manipulation
+const NFT_VALIDATION = {
+  MIN_FLOOR_PRICE: 0.001, // Minimum floor price in MON (1 MON = 1000)
+  MAX_HOLDINGS_MULTIPLIER: 1000, // Max holdings relative to typical collection size for ERC721
+  MIN_TRADING_VOLUME: 0.01, // Minimum 7-day trading volume in MON
+  SUSPICIOUS_HOLDINGS_THRESHOLD: 10000, // Flag holdings over 10k tokens
+  MIN_COLLECTION_SIZE: 10, // Minimum collection size to be considered valid
+  MAX_VALUE_PER_COLLECTION: 1000000, // Maximum value per collection to prevent manipulation
+  // ERC1155 specific thresholds
+  ERC1155_MAX_HOLDINGS: 100000, // Max holdings for ERC1155 (much higher since they're fungible)
+  ERC1155_SUSPICIOUS_THRESHOLD: 10000, // Flag ERC1155 holdings over 10k tokens
+} as const;
+
+/**
+ * Log suspicious NFT activity for monitoring
+ */
+function logSuspiciousNFTActivity(
+  walletAddress: string,
+  collectionName: string,
+  reason: string,
+  details: Record<string, unknown>
+) {
+  console.warn(`🚨 SUSPICIOUS NFT ACTIVITY DETECTED:`, {
+    walletAddress,
+    collectionName,
+    reason,
+    details,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Validate NFT collection data to prevent wash trading manipulation
+ */
+function validateNFTCollection(
+  collection: MagicEdenCollection,
+  sevenDayFloorSale: number,
+  holdingItems: number,
+  walletAddress: string
+): { isValid: boolean; reason?: string; adjustedValue: number } {
+  const collectionName = collection.collection.name || "Unknown";
+  const rawValue = sevenDayFloorSale * holdingItems;
+
+  // Detect if this is an ERC1155 collection
+  const isERC1155 = collection.collection.contractKind === "erc1155";
+
+  // Check 1: Minimum floor price
+  if (sevenDayFloorSale < NFT_VALIDATION.MIN_FLOOR_PRICE) {
+    logSuspiciousNFTActivity(
+      walletAddress,
+      collectionName,
+      "Floor price too low",
+      {
+        floorPrice: sevenDayFloorSale,
+        minimumRequired: NFT_VALIDATION.MIN_FLOOR_PRICE,
+      }
+    );
+    return {
+      isValid: false,
+      reason: `Floor price too low: ${sevenDayFloorSale} MON`,
+      adjustedValue: 0,
+    };
+  }
+
+  // Check 2: Suspiciously large holdings (different thresholds for ERC1155 vs ERC721)
+  const holdingsThreshold = isERC1155
+    ? NFT_VALIDATION.ERC1155_SUSPICIOUS_THRESHOLD
+    : NFT_VALIDATION.SUSPICIOUS_HOLDINGS_THRESHOLD;
+
+  if (holdingItems > holdingsThreshold) {
+    logSuspiciousNFTActivity(
+      walletAddress,
+      collectionName,
+      "Suspiciously large holdings",
+      {
+        holdings: holdingItems,
+        threshold: holdingsThreshold,
+        isERC1155,
+      }
+    );
+    return {
+      isValid: false,
+      reason: `Suspicious holdings: ${holdingItems.toLocaleString()} tokens`,
+      adjustedValue: 0,
+    };
+  }
+  // Check 3: Trading volume validation (if available)
+  const sevenDayVolume = collection.collection.volume?.["7day"] || 0;
+  if (
+    sevenDayVolume > 0 &&
+    sevenDayVolume < NFT_VALIDATION.MIN_TRADING_VOLUME
+  ) {
+    logSuspiciousNFTActivity(
+      walletAddress,
+      collectionName,
+      "Low trading volume",
+      {
+        volume: sevenDayVolume,
+        minimumRequired: NFT_VALIDATION.MIN_TRADING_VOLUME,
+        isERC1155,
+      }
+    );
+    return {
+      isValid: false,
+      reason: `Low trading volume: ${sevenDayVolume} MON`,
+      adjustedValue: 0,
+    };
+  }
+
+  // Check 4: Holdings vs collection size ratio (ERC721 only - skip for ERC1155)
+  const collectionSize = Number(collection.collection.tokenCount) || 0;
+
+  if (!isERC1155 && collectionSize > 0) {
+    const holdingsRatio = holdingItems / collectionSize;
+    if (holdingsRatio > NFT_VALIDATION.MAX_HOLDINGS_MULTIPLIER) {
+      logSuspiciousNFTActivity(
+        walletAddress,
+        collectionName,
+        "Holdings too large relative to collection",
+        {
+          holdings: holdingItems,
+          collectionSize,
+          ratio: holdingsRatio,
+          maxAllowed: NFT_VALIDATION.MAX_HOLDINGS_MULTIPLIER,
+          isERC1155,
+        }
+      );
+      return {
+        isValid: false,
+        reason: `Holdings too large relative to collection: ${(
+          holdingsRatio * 100
+        ).toFixed(1)}%`,
+        adjustedValue: 0,
+      };
+    }
+  }
+
+  // Check 5: Minimum collection size (skip for ERC1155 since they often have single token ID)
+  if (
+    !isERC1155 &&
+    collectionSize > 0 &&
+    collectionSize < NFT_VALIDATION.MIN_COLLECTION_SIZE
+  ) {
+    logSuspiciousNFTActivity(
+      walletAddress,
+      collectionName,
+      "Collection too small",
+      {
+        collectionSize,
+        minimumRequired: NFT_VALIDATION.MIN_COLLECTION_SIZE,
+        isERC1155,
+      }
+    );
+    return {
+      isValid: false,
+      reason: `Collection too small: ${collectionSize} tokens`,
+      adjustedValue: 0,
+    };
+  }
+
+  // Check 6: Maximum value per collection to prevent extreme manipulation
+  if (rawValue > NFT_VALIDATION.MAX_VALUE_PER_COLLECTION) {
+    logSuspiciousNFTActivity(
+      walletAddress,
+      collectionName,
+      "Collection value too high",
+      {
+        rawValue,
+        maximumAllowed: NFT_VALIDATION.MAX_VALUE_PER_COLLECTION,
+        isERC1155,
+      }
+    );
+    return {
+      isValid: false,
+      reason: `Collection value too high: ${rawValue.toLocaleString()} MON`,
+      adjustedValue: 0,
+    };
+  }
+
+  // All checks passed
+  return {
+    isValid: true,
+    adjustedValue: rawValue,
+  };
+}
+
 async function fetchNFTBagValue(walletAddress: string): Promise<number> {
   try {
     const baseUrl =
@@ -144,15 +335,39 @@ async function fetchNFTBagValue(walletAddress: string): Promise<number> {
 
     const data: MagicEdenUserCollections = await response.json();
 
-    // Calculate total NFT bag value based on 7-day floor sale values
+    // Calculate total NFT bag value with validation
     const totalValue =
       data.collections?.reduce((total, collection) => {
         const sevenDayFloorSale =
           collection.collection.floorSale?.["7day"] || 0;
-        const holdingItems = collection.ownership.tokenCount || 1;
+        const holdingItems = Number(collection.ownership.tokenCount) || 1;
 
-        return total + sevenDayFloorSale * holdingItems;
+        // Validate the collection data
+        const validation = validateNFTCollection(
+          collection,
+          sevenDayFloorSale,
+          holdingItems,
+          walletAddress
+        );
+
+        if (!validation.isValid) {
+          console.warn(
+            `NFT validation failed for ${collection.collection.name}: ${validation.reason}`
+          );
+          return total; // Skip this collection
+        }
+
+        return total + validation.adjustedValue;
       }, 0) || 0;
+
+    // Final safety check: cap the total value to prevent extreme manipulation
+    const maxTotalValue = 10000000; // 10M MON maximum
+    if (totalValue > maxTotalValue) {
+      console.warn(
+        `🚨 NFT bag value capped for ${walletAddress}: ${totalValue} → ${maxTotalValue} MON`
+      );
+      return maxTotalValue;
+    }
 
     return totalValue;
   } catch (error) {
@@ -172,7 +387,7 @@ async function fetchTransactionsBatch(
   startBlock: number = 0,
   signal?: AbortSignal
 ): Promise<Record<string, string>[]> {
-  const apiKey = process.env.ETHERSCAN_API_KEY || "R8A3776815X7N5D2V3QTHMXPI5IFJSZZMX";
+  const apiKey = process.env.ETHERSCAN_API_KEY;
   const chainId = "10143";
 
   if (!apiKey) {
@@ -180,8 +395,6 @@ async function fetchTransactionsBatch(
   }
 
   const url = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=account&action=txlist&address=${walletAddress}&page=1&offset=10000&startblock=${startBlock}&endblock=99999999&sort=asc&apikey=${apiKey}`;
-
-  console.log(`Fetching transactions from block ${startBlock}...`);
 
   const maxRetries = 3;
   let lastError: Error | null = null;
@@ -291,8 +504,7 @@ async function fetchTransactions(
   signal?: AbortSignal
 ): Promise<Record<string, string>[]> {
   try {
-    const apiKey =
-      process.env.ETHERSCAN_API_KEY || "R8A3776815X7N5D2V3QTHMXPI5IFJSZZMX";
+    const apiKey = process.env.ETHERSCAN_API_KEY;
     if (!apiKey) {
       console.error("ETHERSCAN_API_KEY environment variable is not set");
       return [];
@@ -453,6 +665,87 @@ function generateTransactionHistory(
 }
 
 /**
+ * Recalculate all user rankings
+ */
+async function recalculateAllRankings() {
+  try {
+    // Get all users with their metrics
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        walletAddress: true,
+        txCount: true,
+        gasSpentMON: true,
+        totalVolume: true,
+        nftBagValue: true,
+        isDay1User: true,
+        longestStreak: true,
+        daysActive: true,
+      },
+    });
+
+    if (users.length === 0) return;
+
+    // Convert to the format expected by the scoring system
+    const usersWithMetrics = users.map((user) => ({
+      walletAddress: user.walletAddress,
+      metrics: {
+        txCount: user.txCount,
+        gasSpentMON: user.gasSpentMON,
+        totalVolume: user.totalVolume,
+        nftBagValue: user.nftBagValue,
+        isDay1User: user.isDay1User,
+        longestStreak: user.longestStreak,
+        daysActive: user.daysActive,
+        transactionHistory: [], // Empty array since we don't store it anymore
+      },
+    }));
+
+    // Calculate scores for all users
+    const usersWithScores = usersWithMetrics.map((user) => ({
+      walletAddress: user.walletAddress,
+      metrics: user.metrics,
+      scores: calculateComponentScores(
+        user.metrics,
+        usersWithMetrics.map((u) => u.metrics)
+      ),
+    }));
+
+    // Generate leaderboard with rankings
+    const leaderboard = generateLeaderboard(usersWithScores);
+
+    // Update all users with new scores and rankings
+    const updatePromises = leaderboard
+      .map((entry) => {
+        const user = users.find((u) => u.walletAddress === entry.walletAddress);
+        if (!user) return null;
+
+        return prisma.user.update({
+          where: { id: user.id },
+          data: {
+            volumeScore: entry.scores.volumeScore,
+            gasScore: entry.scores.gasScore,
+            transactionScore: entry.scores.transactionScore,
+            nftScore: entry.scores.nftScore,
+            daysActiveScore: entry.scores.daysActiveScore,
+            streakScore: entry.scores.streakScore,
+            day1BonusScore: entry.scores.day1BonusScore,
+            totalScore: entry.scores.totalScore,
+            rank: entry.rank,
+            updatedAt: new Date(),
+          },
+        });
+      })
+      .filter(Boolean);
+
+    await Promise.all(updatePromises);
+    console.log(`✅ Rankings recalculated for ${users.length} users`);
+  } catch (error) {
+    console.error("❌ Error recalculating rankings:", error);
+  }
+}
+
+/**
  * GET handler for /api/stats?wallet={address}
  * @param request - Next.js request object
  * @returns Wallet statistics
@@ -532,7 +825,7 @@ export async function GET(request: NextRequest) {
           isDay1User: true,
           longestStreak: true,
           daysActive: true,
-        }
+        },
       });
 
       // Add current user metrics to the list for score calculation
@@ -546,7 +839,7 @@ export async function GET(request: NextRequest) {
           isDay1User,
           longestStreak,
           daysActive,
-        }
+        },
       ];
 
       // Calculate scores
@@ -561,7 +854,10 @@ export async function GET(request: NextRequest) {
         transactionHistory,
       };
 
-      const scores = calculateComponentScores(currentUserMetrics, allUserMetrics);
+      const scores = calculateComponentScores(
+        currentUserMetrics,
+        allUserMetrics
+      );
 
       // Upsert user data
       await prisma.user.upsert({
@@ -574,8 +870,6 @@ export async function GET(request: NextRequest) {
           isDay1User,
           longestStreak,
           daysActive,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          transactionHistory: transactionHistory as any,
           volumeScore: scores.volumeScore,
           gasScore: scores.gasScore,
           transactionScore: scores.transactionScore,
@@ -595,8 +889,6 @@ export async function GET(request: NextRequest) {
           isDay1User,
           longestStreak,
           daysActive,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          transactionHistory: transactionHistory as any,
           volumeScore: scores.volumeScore,
           gasScore: scores.gasScore,
           transactionScore: scores.transactionScore,
@@ -607,6 +899,9 @@ export async function GET(request: NextRequest) {
           totalScore: scores.totalScore,
         },
       });
+
+      // Recalculate all rankings after adding/updating user
+      await recalculateAllRankings();
 
       console.log(`User ${wallet} data saved/updated successfully`);
     } catch (dbError) {

@@ -37,10 +37,6 @@ model User {
   
   // Ranking
   rank              Int?   @unique
-  percentile        Float @default(0)
-
-  // Transaction history for charts
-  transactionHistory Json? // Store as JSON array
 
   @@map("users")
 }

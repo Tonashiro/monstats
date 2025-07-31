@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Monad On-Chain Activity",
-  description: "Check your Monad on-chain activity",
+  title: "Monstats",
+  description: "Check your Monstats",
 };
 
 export default function RootLayout({

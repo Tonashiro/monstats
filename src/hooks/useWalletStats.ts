@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { WalletStats } from "@/types";
 
 // Custom error type for API errors
@@ -14,7 +14,7 @@ interface ApiError extends Error {
  * @returns Promise resolving to wallet statistics
  */
 async function fetchWalletStats(
-  walletAddress: string, 
+  walletAddress: string,
   signal?: AbortSignal
 ): Promise<WalletStats> {
   const response = await fetch(`/api/stats?wallet=${walletAddress}`, {
@@ -23,12 +23,14 @@ async function fetchWalletStats(
 
   if (!response.ok) {
     const error = await response.json();
-    
+
     // Create a custom error that includes the status code and original error message
-    const customError = new Error(error.error || error.message || "Failed to fetch wallet stats") as ApiError;
+    const customError = new Error(
+      error.error || error.message || "Failed to fetch wallet stats"
+    ) as ApiError;
     customError.status = response.status;
     customError.originalMessage = error.error || error.message;
-    
+
     throw customError;
   }
 
@@ -45,9 +47,16 @@ export function useWalletStats(
   walletAddress: string,
   enabled: boolean = false
 ) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: ["walletStats", walletAddress],
-    queryFn: ({ signal }) => fetchWalletStats(walletAddress, signal),
+    queryFn: ({ signal }) =>
+      fetchWalletStats(walletAddress, signal).then((data) => {
+        // Invalidate leaderboard cache to trigger a refresh
+        queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+        return data;
+      }),
     enabled: enabled && walletAddress.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error) => {
@@ -60,4 +69,3 @@ export function useWalletStats(
     },
   });
 }
- 

@@ -48,9 +48,46 @@ export interface EtherscanResponse {
  * Magic Eden floor sale data
  */
 export interface MagicEdenFloorSale {
+  "1day": number | null;
+  "7day": number | null;
+  "30day": number | null;
+}
+
+/**
+ * Magic Eden volume data
+ */
+export interface MagicEdenVolume {
   "1day": number;
   "7day": number;
   "30day": number;
+  allTime: number;
+}
+
+/**
+ * Magic Eden rank data
+ */
+export interface MagicEdenRank {
+  "1day": number | null;
+  "7day": number | null;
+  "30day": number | null;
+  allTime: number | null;
+}
+
+/**
+ * Magic Eden volume change data
+ */
+export interface MagicEdenVolumeChange {
+  "1day": number;
+  "7day": number;
+  "30day": number;
+}
+
+/**
+ * Magic Eden floor ask price data
+ */
+export interface MagicEdenFloorAskPrice {
+  currency: Record<string, unknown>; // Currency object
+  amount: Record<string, unknown>; // Amount object
 }
 
 /**
@@ -58,16 +95,33 @@ export interface MagicEdenFloorSale {
  */
 export interface MagicEdenCollection {
   collection: {
-    symbol: string;
+    id: string;
+    slug: string | null;
     name: string;
-    floorPrice: number;
-    listedCount: number;
-    volumeAll: number;
+    image: string;
+    isSpam: boolean;
+    banner: string | null;
+    twitterUrl: string | null;
+    discordUrl: string;
+    externalUrl: string;
+    twitterUsername: string;
+    openseaVerificationStatus: string | null;
+    description: string;
+    metadataDisabled: boolean;
+    sampleImages: string[];
+    tokenCount: string; // Note: This is a string in the API response
+    primaryContract: string;
+    tokenSetId: string;
+    floorAskPrice: MagicEdenFloorAskPrice;
+    rank: MagicEdenRank;
+    volume: MagicEdenVolume;
+    volumeChange: MagicEdenVolumeChange;
     floorSale: MagicEdenFloorSale;
+    contractKind: 'erc721' | 'erc1155'; // This is very useful for our validation!
   };
   ownership: {
-    tokenCount: number;
-    onSaleCount: number;
+    tokenCount: string; // Note: This is a string in the API response
+    onSaleCount: string; // Note: This is a string in the API response
   };
 }
 
