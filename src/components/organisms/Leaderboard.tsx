@@ -114,11 +114,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     }
   }, [leaderboardLoading]);
 
-  const currentUser = data.find(
-    (entry) =>
-      entry.walletAddress.toLowerCase() === currentUserWallet?.toLowerCase()
-  );
-
   // Use server-side data if available, otherwise fall back to client-side data
   // Keep showing previous data during loading to prevent disappearing
   const displayData = leaderboardData?.leaderboard || data;
@@ -126,6 +121,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   const totalPages =
     pagination?.totalPages || Math.ceil(displayData.length / pageSize);
   const totalUsers = pagination?.totalUsers || displayData.length;
+
+  // Find current user in the display data (server-side data takes priority)
+  const currentUser = displayData.find(
+    (entry) =>
+      entry.walletAddress.toLowerCase() === currentUserWallet?.toLowerCase()
+  );
 
   // Handle sort change
   const handleSortChange = (newSortBy: string) => {
@@ -268,7 +269,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
 
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
-                  {data.length}
+                  {totalUsers}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Users</div>
               </div>
