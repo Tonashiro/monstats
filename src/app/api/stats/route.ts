@@ -854,12 +854,33 @@ export async function GET(request: NextRequest) {
       console.log(`User ${wallet} data saved/updated successfully`);
       console.log(`Scores calculated:`, scores);
       console.log(`isDay1User: ${isDay1User}`);
+
+      // Get user's global position by counting users with higher scores
+      const userPosition = await prisma.user.count({
+        where: {
+          totalScore: {
+            gt: scores.totalScore,
+          },
+        },
+      });
+
+      // Position is 1-based, so add 1 to the count
+      const globalPosition = userPosition + 1;
+
+      console.log(`User ${wallet} global position: ${globalPosition}`);
+
+      // Return stats with user position and scores
+      return NextResponse.json({
+        ...stats,
+        userPosition: globalPosition,
+        scores,
+        totalUsers: allUsers.length + 1, // +1 for the current user
+      });
     } catch (dbError) {
       console.error("Database error:", dbError);
       // Continue with API response even if database save fails
+      return NextResponse.json(stats);
     }
-
-    return NextResponse.json(stats);
   } catch (error) {
     console.error("Error processing wallet stats:", error);
     return NextResponse.json(

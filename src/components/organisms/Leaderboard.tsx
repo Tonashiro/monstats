@@ -37,6 +37,7 @@ import {
 import { formatMON, formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
+import { useWalletStats } from "@/hooks/useWalletStats";
 
 export interface LeaderboardProps {
   data: LeaderboardEntry[];
@@ -76,7 +77,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(25);
+  const [pageSize, setPageSize] = React.useState(1);
   const [sortBy, setSortBy] = React.useState("totalScore");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
   const [showLoadingOverlay, setShowLoadingOverlay] = React.useState(false);
@@ -90,6 +91,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
       sortBy,
       sortOrder,
     });
+
+  // Fetch current user stats if wallet is provided
+  const { data: currentUserStats } = useWalletStats(
+    currentUserWallet || "",
+    !!currentUserWallet
+  );
 
   // Reset to first page when search or sort changes
   React.useEffect(() => {
@@ -127,6 +134,36 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     (entry) =>
       entry.walletAddress.toLowerCase() === currentUserWallet?.toLowerCase()
   );
+
+  // Create current user data from stats if available, otherwise use leaderboard data
+  const currentUserData =
+    currentUserStats && currentUserWallet
+      ? {
+          walletAddress: currentUserWallet,
+          userNumber: currentUserStats.userPosition || 0,
+          totalScore: currentUserStats.scores?.totalScore || 0,
+          metrics: {
+            txCount: currentUserStats.txCount,
+            gasSpentMON: currentUserStats.gasSpentMON,
+            totalVolume: currentUserStats.totalVolume,
+            nftBagValue: currentUserStats.nftBagValue,
+            isDay1User: currentUserStats.isDay1User,
+            longestStreak: currentUserStats.longestStreak,
+            daysActive: 0, // This will be calculated from transaction history
+            transactionHistory: currentUserStats.transactionHistory,
+          },
+          scores: currentUserStats.scores || {
+            volumeScore: 0,
+            gasScore: 0,
+            transactionScore: 0,
+            nftScore: 0,
+            daysActiveScore: 0,
+            streakScore: 0,
+            day1BonusScore: 0,
+            totalScore: 0,
+          },
+        }
+      : currentUser;
 
   // Handle sort change
   const handleSortChange = (newSortBy: string) => {
@@ -244,7 +281,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Current User Summary */}
-      {currentUser && (
+      {currentUserData && (
         <Card className="border-purple-500/20 bg-purple-500/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-purple-400">
@@ -256,23 +293,62 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
-                  #{currentUser.userNumber}
+                  #{currentUserData.userNumber}
                 </div>
                 <div className="text-sm text-muted-foreground">Position</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
-                  {currentUser.totalScore.toFixed(1)}
+                  {currentUserData.totalScore.toFixed(1)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Score</div>
               </div>
 
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
-                  {totalUsers}
+                  {currentUserStats?.totalUsers || totalUsers}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Users</div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Score Breakdown for Current User */}
+      {currentUserData && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-purple-500" />
+              Your Score Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {getScoreBreakdown(currentUserData.scores).map((item) => (
+                <div key={item.label} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {item.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {(item.weight * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-muted rounded-full h-2">
+                      <div
+                        className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${item.score}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium w-12 text-right">
+                      {item.score.toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -335,6 +411,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-4">
           <div className="relative">
             {/* Loading overlay */}
@@ -433,50 +510,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               totalItems={totalUsers}
               onPageChange={setCurrentPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 75, 100]}
+              pageSizeOptions={[1, 50, 75, 100]}
             />
           )}
         </CardContent>
       </Card>
-
-      {/* Score Breakdown for Current User */}
-      {currentUser && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-purple-500" />
-              Your Score Breakdown
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {getScoreBreakdown(currentUser.scores).map((item) => (
-                <div key={item.label} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {item.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {(item.weight * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-muted rounded-full h-2">
-                      <div
-                        className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${item.score}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium w-12 text-right">
-                      {item.score.toFixed(1)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

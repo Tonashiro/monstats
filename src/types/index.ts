@@ -19,6 +19,18 @@ export interface WalletStats {
   isDay1User: boolean;
   longestStreak: number;
   transactionHistory: TransactionDataPoint[];
+  userPosition?: number;
+  scores?: {
+    volumeScore: number;
+    gasScore: number;
+    transactionScore: number;
+    nftScore: number;
+    daysActiveScore: number;
+    streakScore: number;
+    day1BonusScore: number;
+    totalScore: number;
+  };
+  totalUsers?: number;
 }
 
 /**
