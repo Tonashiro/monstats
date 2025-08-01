@@ -34,7 +34,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   totalItems,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [10, 20, 50, 100],
+  pageSizeOptions = [25, 50, 75, 100],
   showPageSizeSelector = true,
 }) => {
   const startItem = (currentPage - 1) * pageSize + 1;

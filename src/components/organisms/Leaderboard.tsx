@@ -76,7 +76,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(100);
+  const [pageSize, setPageSize] = React.useState(25);
   const [sortBy, setSortBy] = React.useState("totalScore");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
   const [showLoadingOverlay, setShowLoadingOverlay] = React.useState(false);
@@ -432,7 +432,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               totalItems={totalUsers}
               onPageChange={setCurrentPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[50, 100, 200, 500]}
+              pageSizeOptions={[25, 50, 75, 100]}
             />
           )}
         </CardContent>
