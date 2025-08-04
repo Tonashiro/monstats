@@ -63,13 +63,6 @@ const getRankIcon = (userNumber: number) => {
   return null;
 };
 
-const getRankBadgeVariant = (userNumber: number) => {
-  if (userNumber === 1) return "default";
-  if (userNumber === 2) return "secondary";
-  if (userNumber === 3) return "outline";
-  return "outline";
-};
-
 export const Leaderboard: React.FC<LeaderboardProps> = ({
   data,
   isLoading = false,
@@ -367,7 +360,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   {totalUsers} users
                 </Badge>
                 {currentSortOption && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="outline" className="ml-2">
                     Sorted by {currentSortOption.label}{" "}
                     {sortOrder === "asc" ? "↑" : "↓"}
                   </Badge>
@@ -455,11 +448,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <Badge
-                            variant={getRankBadgeVariant(entry.userNumber)}
-                          >
-                            #{entry.userNumber}
-                          </Badge>
+                          <Badge variant="outline">#{entry.userNumber}</Badge>
                           {getRankIcon(entry.userNumber)}
                         </div>
                       </TableCell>
