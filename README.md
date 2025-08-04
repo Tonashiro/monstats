@@ -71,9 +71,9 @@ The leaderboard uses a sophisticated weighted scoring system:
 - **Total Volume (25%)**: Economic activity with log transformation to prevent whale dominance
 - **Gas Spent (20%)**: Commitment and activity level
 - **Transactions (15%)**: Consistent usage patterns
-- **NFT Bag Value (15%)**: Investment and taste
+- **NFT Bag Value (20%)**: Investment and taste
 - **Days Active (10%)**: Consistency over time
-- **Transaction Streak (10%)**: Sustained engagement
+- **Transaction Streak (5%)**: Sustained engagement
 - **Day 1 User Bonus (5%)**: Early adoption reward
 
 Each metric is normalized to a 0-100 percentile scale, then weighted and combined for the final score.

@@ -35,9 +35,9 @@ const WEIGHTS = {
   volume: 0.25, // 25% - High weight for economic activity
   gas: 0.2, // 20% - Commitment and activity level
   transactions: 0.15, // 15% - Consistent usage
-  nft: 0.15, // 15% - Investment and taste
+  nft: 0.2, // 20% - Investment and taste
   daysActive: 0.1, // 10% - Consistency over time
-  streak: 0.1, // 10% - Sustained engagement
+  streak: 0.05, // 5% - Sustained engagement
   day1Bonus: 0.05, // 5% - Early adoption bonus
 } as const;
 
