@@ -87,7 +87,7 @@ export const WalletInputForm: React.FC<WalletInputFormProps> = ({
             placeholder="Enter your wallet address"
             disabled={disabled || isLoading}
             className={cn(
-              "w-full pr-10 transition-all duration-200 !border-white",
+              "w-full pr-10 transition-all duration-200 !border-white text-white",
               errors.walletAddress
                 ? "!border-red-500 focus:ring-2 focus:ring-red-500/20"
                 : hasValue && isValid
