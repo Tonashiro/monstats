@@ -70,7 +70,7 @@ export const WalletInputForm: React.FC<WalletInputFormProps> = ({
   return (
     <form
       onSubmit={handleSubmit(onSubmitForm)}
-      className="w-full max-w-lg space-y-6"
+      className="w-full max-w-lg space-y-6 text-white"
     >
       <div className="space-y-4">
         <label

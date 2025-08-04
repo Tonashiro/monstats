@@ -48,7 +48,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   variant = "default",
 }) => {
   const variantStyles = {
-    default: "border-border bg-card",
+    default: "border-white bg-card",
     success: "border-green-200 bg-green-50 text-green-900",
     warning: "border-yellow-200 bg-yellow-50 text-yellow-900",
     danger: "border-red-200 bg-red-50 text-red-900",

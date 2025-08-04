@@ -66,7 +66,7 @@ export default function HomePage() {
             <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
               Monstats
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-white max-w-2xl mx-auto">
               Check your on-chain activity
             </p>
           </div>
@@ -74,12 +74,12 @@ export default function HomePage() {
 
         {/* Input Section */}
         <div className="animate-slide-in" style={{ animationDelay: "0.2s" }}>
-          <Card className="max-w-2xl mx-auto shadow-xl">
+          <Card className="max-w-2xl mx-auto shadow-xl !border-white">
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-xl font-semibold">
+              <CardTitle className="text-xl font-semibold text-white">
                 Check Your Wallet Stats
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white">
                 Enter your wallet address to see your personal statistics and
                 ranking
               </p>
@@ -191,7 +191,7 @@ export default function HomePage() {
                       <span className="text-2xl">🏆</span>
                     </div>
                     <h3 className="font-semibold">View Leaderboard</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white">
                       See the top Monad users ranked by their on-chain activity
                     </p>
                   </div>
@@ -200,7 +200,7 @@ export default function HomePage() {
                       <span className="text-2xl">🔍</span>
                     </div>
                     <h3 className="font-semibold">Check Your Stats</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white">
                       Enter your wallet to see your personal ranking and metrics
                     </p>
                   </div>
@@ -209,7 +209,7 @@ export default function HomePage() {
                       <span className="text-2xl">📊</span>
                     </div>
                     <h3 className="font-semibold">Track Progress</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-white">
                       Monitor your on-chain activity and improve your ranking
                     </p>
                   </div>

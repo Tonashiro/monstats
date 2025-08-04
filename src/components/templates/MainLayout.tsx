@@ -46,9 +46,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 w-full border-t border-border/50 bg-background/80 backdrop-blur-sm z-10 mt-auto">
+      <footer className="fixed bottom-0 w-full border-t border-white/50 bg-background/80 backdrop-blur-sm z-10 mt-auto">
         <div className="container mx-auto px-4 py-4">
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-white">
             <p>
               Built with 💜 by{" "}
               <a

@@ -18,7 +18,7 @@
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: 210 40% 98%;
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
   --radius: 0.625rem;
@@ -35,7 +35,7 @@
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 0 0);
   --sidebar-ring: oklch(0.556 0 0);
 }
 
@@ -79,29 +79,6 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-}
-
-/* Enhanced Dark Theme with Purple Accents */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 213 31% 91%;
-    --primary: 263 70% 50%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 222 84% 5%;
-    --secondary-foreground: 213 31% 91%;
-    --muted: 222 84% 5%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 222 84% 5%;
-    --accent-foreground: 213 31% 91%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 222 84% 5%;
-    --input: 222 84% 5%;
-    --ring: 263 70% 50%;
-  }
 }
 
 /* Custom Animations */
@@ -209,12 +186,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary));
+  background: hsl(263 70% 60%);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary) / 0.8);
+  background: hsl(263 70% 60% / 0.8);
 }
 
 /* Gradient Background */
@@ -243,10 +220,6 @@
   border-radius: calc(var(--radius) - 1px);
 }
 
-* {
-  border-color: hsl(var(--border));
-}
-
 html,
 body {
   height: 100%;
@@ -256,6 +229,7 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans);
+  color: white;
 }
 
 /* Make dark mode use the same dark theme values */
@@ -275,7 +249,7 @@ body {
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
@@ -289,13 +263,13 @@ body {
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 0 0);
   --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-white outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
